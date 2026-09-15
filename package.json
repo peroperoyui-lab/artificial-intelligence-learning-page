@@ -1,0 +1,9 @@
+{
+  "name": "visible-ai-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An offline-capable Chinese interactive AI learning lab",
+  "scripts": {"start": "node scripts/serve.js", "build": "node scripts/build.js", "test": "node --test tests/engine.test.js", "test:e2e": "python tests/browser_test.py"},
+  "engines": {"node": ">=20"},
+  "license": "MIT"
+}

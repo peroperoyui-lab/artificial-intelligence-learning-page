@@ -1,0 +1,9 @@
+/* Cross-browser SVG and accessibility corrections. */
+[hidden]{display:none!important}
+.axis-line,.grid-line{fill:none}
+.lesson-reading,.lesson-aside,.course-group-head,.preview-network{min-width:0}
+.brand svg{flex:none}
+.formula{overflow-wrap:anywhere}
+.scope-title{gap:12px;flex-wrap:wrap}
+.home-note h3{flex:0 0 200px}
+@media(max-width:760px){.home-note h3{flex-basis:auto}.flow-node{overflow-wrap:anywhere}.lab-status{overflow-wrap:anywhere}}

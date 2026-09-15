@@ -8,7 +8,7 @@
 
 ## 知识来源
 
-`src/content.js` 中 `sources` 列表记录每一项原始 URL 与使用范围，章节的 `refs` 将其连接到相应内容。站内“来源与开源”页面呈现这份记录。
+`src/content.js` 及 `src/content-expansion.js` 中 `sources` 列表记录每一项原始 URL 与使用范围，章节的 `refs` 将其连接到相应内容。站内“来源与开源”页面呈现这份记录。
 
 - 《动手学深度学习》 / Dive into Deep Learning：线性代数、Softmax、多层感知机、反向传播、Adam、卷积、注意力。参考数学定义与概念；没有复制原文、插图或实现。
 - Google Machine Learning Crash Course：学习任务、梯度下降、过拟合。
@@ -36,3 +36,9 @@
 **GitHub Actions** — 工作流引用 actions/checkout、actions/setup-node、actions/setup-python、actions/upload-artifact 及 Pages 官方 actions。这些工具只在 CI 环境执行，不成为本站浏览器运行依赖。各自许可见其官方仓库。
 
 浏览器测试产生的截图是本站自己的页面渲染结果，不包含第三方照片或预训练模型输出。
+
+## 1.1 新增教学参考
+
+新增说明依据《动手学深度学习》的多通道卷积、汇聚、填充/步幅、Transformer、正弦位置编码和 Dropout 章节，以及 scikit-learn 的聚类、预处理、数据泄漏说明。每项链接和用途记录在 `content-expansion.js`，由章节及词典关联。
+
+8×8 线条图案在浏览器中原创生成，不使用 MNIST 或第三方图片数据集。卷积核使用公开的数学算子；Transformer 投影用项目种子函数生成，不载入外部预训练权重。分类头、矩阵步骤、Lloyd/K-means++ 和界面均为独立实现，没有引入第三方生产包或额外模型许可。

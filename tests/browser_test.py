@@ -65,13 +65,13 @@ try:
             expect(page.locator('h1')).to_contain_text('让抽象的 AI')
             assert float(page.locator('#home-loss').inner_text())>0
             page.screenshot(path=str(OUT/'home-desktop.png'),full_page=True)
-        with check('All 13 chapters mount their working lab and explanations'):
-            assert len(ids)==13
+        with check('All registered chapters mount their working lab and explanations'):
+            assert len(ids)==16
             for chapter in ids:
                 route(chapter)
                 assert len(page.locator('#main').inner_text())>600
                 assert snapshot() is not None
-                assert page.locator('.reading-section').count()==3
+                assert page.locator('.reading-section').count()==page.evaluate('(id)=>AI.C.chapters.find(c=>c.id===id).body.length',chapter)
             assert not errors,errors
         with check('Matrix collapse has zero determinant'):
             route('vectors');page.select_option('#matrix-preset','collapse')
@@ -178,6 +178,117 @@ try:
             assert snapshot()['counts']==[100,0,0,0,0,0]
             page.select_option('#token-k','6');assert sum(snapshot()['counts'])==0
             page.click('#token-many');assert sum(snapshot()['counts'])==100 and sum(v>0 for v in snapshot()['counts'])>1
+        with check('Expanded glossary exposes examples chapter filters and stable deep links'):
+            route('/glossary')
+            assert page.locator('.dictionary-term').count()==173
+            assert page.locator('.term-example').count()==173
+            page.select_option('#dictionary-chapter','transformer')
+            assert page.locator('.dictionary-term').count()==page.evaluate('AI.C.findTerms("","transformer").length')
+            page.select_option('#dictionary-chapter','');page.fill('#dictionary-filter','layer norm')
+            expect(page.locator('.dictionary-term').first).to_contain_text('层归一化')
+            page.locator('.dictionary-term h3 a').first.click()
+            page.wait_for_function('decodeURIComponent(location.hash).includes("/glossary/层归一化")')
+            expect(page.locator('#dictionary-filter')).to_have_value('层归一化')
+            page.locator('.related-terms a').filter(has_text='批量归一化').first.click()
+            expect(page.locator('#dictionary-filter')).to_have_value('批量归一化')
+        with check('Chapter terminology links and search route to explanatory entries'):
+            route('transformer');page.locator('.chapter-terms summary').click()
+            page.locator('.chapter-terms a').filter(has_text='层归一化').first.click()
+            expect(page.locator('#dictionary-filter')).to_have_value('层归一化')
+            page.click('#search-open');page.fill('#search-input','AdamW')
+            page.locator('.search-result').first.click()
+            expect(page.locator('#dictionary-filter')).to_have_value('AdamW')
+            expect(page.locator('.term-example').first).to_contain_text('AdamW')
+        with check('Vision pipeline reacts to pixel edits with actual convolution and pooling'):
+            route('cnn');a=snapshot();assert len(a['features']['flat'])==48
+            assert a['trainCount']==90 and a['validationCount']==30 and a['trainableParameters']==147
+            page.select_option('#cnn-pattern','3');assert all(x==0 for x in snapshot()['features']['flat'])
+            page.fill('#cnn-row','4');page.fill('#cnn-col','4');page.fill('#cnn-value','1');page.click('#cnn-set')
+            a=snapshot();assert a['image'][3][3]==1 and any(x!=0 for x in a['features']['flat'])
+            before=a['features']['flat'];page.select_option('#cnn-pool','average')
+            assert snapshot()['features']['flat']!=before and snapshot()['epoch']==0
+            page.select_option('#cnn-channel','1');assert snapshot()['channel']==1
+            page.locator('[data-cnn-pixel="27"]').click();assert snapshot()['image'][3][3]==0
+        with check('Vision classifier actually learns and probing leaves trained weights unchanged'):
+            route('cnn');page.select_option('#cnn-pool','max');page.click('#cnn-reset')
+            before=snapshot();page.click('#cnn-train')
+            page.wait_for_function('document.querySelector("#lab-root").getSnapshot().epoch===40')
+            a=snapshot();assert a['metrics']['validation']['loss']<before['metrics']['validation']['loss']*.5
+            assert a['metrics']['validation']['accuracy']>=.8 and a['classifier']!=before['classifier']
+            model=a['classifier'];page.select_option('#cnn-pattern','1');range_value('#cnn-shift',5)
+            assert snapshot()['classifier']==model and snapshot()['epoch']==40
+            page.evaluate('document.activeElement.blur();window.scrollTo(0,0)');page.wait_for_timeout(80)
+            page.screenshot(path=str(OUT/'cnn-desktop.png'),full_page=True)
+        with check('Vision configuration reset and training stop are explicit'):
+            page.select_option('#cnn-pool','average');assert snapshot()['epoch']==0
+            page.click('#cnn-train');page.wait_for_function('document.querySelector("#lab-root").getSnapshot().epoch>=1')
+            page.evaluate('window.oldCase=document.querySelector("#lab-root")');route('loss')
+            old=page.evaluate('oldCase.getSnapshot().epoch');page.wait_for_timeout(130)
+            assert page.evaluate('oldCase.getSnapshot().epoch')==old and not page.evaluate('oldCase.getSnapshot().running')
+        with check('Transformer traces all nine real forward stages and actual matrices'):
+            route('transformer')
+            for stage in range(9):
+                page.click(f'#tr-stages [data-stage="{stage}"]')
+                assert snapshot()['stage']==stage
+                assert page.locator('#tr-tensors .tensor-table').count()>0
+            a=snapshot();assert len(a['probabilities'])==4
+            assert all(abs(sum(row)-1)<1e-10 for row in a['probabilities'])
+            page.click('#tr-stages [data-stage="3"]')
+            page.evaluate('document.activeElement.blur();window.scrollTo(0,0)');page.wait_for_timeout(80)
+            page.screenshot(path=str(OUT/'transformer-desktop.png'),full_page=True)
+        with check('Transformer masks future tokens and its switches change the computation'):
+            route('transformer');a=snapshot()
+            page.select_option('[data-tr-token="3"]','1');b=snapshot()
+            assert a['output'][:3]==b['output'][:3] and a['output'][3]!=b['output'][3]
+            assert all(b['heads'][0]['weights'][0][j]==0 for j in range(1,4))
+            page.uncheck('#tr-causal');assert all(x>0 for x in snapshot()['heads'][0]['weights'][0])
+            page.uncheck('#tr-position');a=snapshot();page.click('#tr-swap');b=snapshot()
+            assert max(abs(x-y) for x,y in zip(a['output'][0],b['output'][1]))<1e-9
+            page.uncheck('#tr-residual');page.uncheck('#tr-norm')
+            assert snapshot()['output']==snapshot()['ff']
+        with check('Transformer hard caps keep all configurations small and deterministic'):
+            route('transformer');page.select_option('#tr-length','8');page.select_option('#tr-heads','1')
+            a=snapshot();assert len(a['heads'])==1 and a['dk']==4 and len(a['output'])==8
+            page.select_option('#tr-heads','2');a=snapshot();assert a['dk']==2 and len(a['heads'])==2
+            assert a['parameters']==228 and sum(len(h['weights'])**2 for h in a['heads'])==128
+            page.select_option('#tr-length','1');assert page.locator('#tr-swap').is_disabled()
+            assert len(snapshot()['output'])==1
+        with check('Transformer playback disposes its timer on navigation'):
+            route('transformer');page.click('#tr-play')
+            page.wait_for_function('document.querySelector("#lab-root").getSnapshot().stage>=1')
+            page.evaluate('window.oldTrace=document.querySelector("#lab-root")');route('vectors')
+            old=page.evaluate('oldTrace.getSnapshot().stage');page.wait_for_timeout(800)
+            assert page.evaluate('oldTrace.getSnapshot().stage')==old and not page.evaluate('oldTrace.getSnapshot().running')
+        with check('K-means exposes both half steps and a nonincreasing objective'):
+            route('clustering');assert snapshot()['labels']==[]
+            page.click('#km-step');a=snapshot();assert a['phase']=='update' and len(a['labels'])==120
+            page.click('#km-step');b=snapshot();assert b['phase']=='assign' and b['iteration']==1 and b['inertia']<=a['inertia']+1e-9
+            page.click('#km-run');page.wait_for_function('document.querySelector("#lab-root").getSnapshot().converged')
+            a=snapshot();assert all(a['history'][i+1][1]<=a['history'][i][1]+1e-9 for i in range(len(a['history'])-1))
+            assert page.locator('#km-run').is_disabled();page.screenshot(path=str(OUT/'clustering-desktop.png'),full_page=True)
+        with check('K-means initialization dataset and scale changes reset the experiment'):
+            page.select_option('#km-data','rings');assert snapshot()['labels']==[]
+            range_value('#km-k',2);a=snapshot();assert len(a['centers'])==2
+            page.select_option('#km-init','random');assert snapshot()['method']=='random'
+            before=snapshot()['points'];range_value('#km-scale',2);after=snapshot()['points']
+            assert all(abs(2*p[0]-q[0])<1e-10 for p,q in zip(before,after))
+            page.click('#km-step');assert snapshot()['halfSteps']==1
+        with check('Every new loop honors the visibility-change stop handler'):
+            for chapter,button in [('cnn','#cnn-train'),('transformer','#tr-play'),('clustering','#km-run')]:
+                route(chapter);page.click(button)
+                page.evaluate('Object.defineProperty(document,"hidden",{configurable:true,get:()=>true});document.dispatchEvent(new Event("visibilitychange"))')
+                assert not snapshot()['running'],chapter
+                page.evaluate('delete document.hidden')
+        with check('Bounded CPU forward timing is measured without a remote model'):
+            route('transformer')
+            timing=page.evaluate("""()=>{const f=()=>AI.E.tinyTransformer([0,1,2,3,4,5,6,7]);for(let i=0;i<20;i++)f();const samples=[];for(let i=0;i<100;i++){const start=performance.now();f();samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);return {operation:'8-token 2-head fixed Transformer forward',samples:100,medianMs:samples[50],p95Ms:samples[95],maxMs:samples[99],userAgent:navigator.userAgent,includesRendering:false};}""")
+            assert all(math.isfinite(timing[k]) for k in ['medianMs','p95Ms','maxMs'])
+            (OUT/'performance.json').write_text(json.dumps(timing,ensure_ascii=False,indent=2),encoding='utf8')
+            print('PERFORMANCE:',json.dumps(timing),flush=True)
+            page.set_viewport_size({'width':390,'height':844})
+            for chapter in ['cnn','transformer','clustering']:
+                route(chapter);page.screenshot(path=str(OUT/(chapter+'-mobile.png')),full_page=True)
+            page.set_viewport_size({'width':1440,'height':1000})
         with check('Experiment snapshots are retained and exportable in the journal'):
             page.click('#record-experiment');route('/journal');assert page.locator('.journal-entry').count()>=1
             with page.expect_download() as info:page.click('#journal-export')
@@ -217,7 +328,7 @@ try:
             route('playground');page.screenshot(path=str(OUT/'training-mobile.png'),full_page=True)
         with check('320-pixel layout and mobile navigation remain usable'):
             page.set_viewport_size({'width':320,'height':740})
-            for chapter in ['/','vectors','playground','attention','tokens']:
+            for chapter in ['/','vectors','playground','attention','tokens','cnn','transformer','clustering','/glossary']:
                 route(chapter);assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'),chapter
             route('/');page.click('#menu-toggle');assert page.locator('#sidebar').is_visible()
             page.locator('#sidebar a[href="#/learn/map"]').click();page.wait_for_selector('#map-task')

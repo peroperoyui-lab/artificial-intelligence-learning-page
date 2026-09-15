@@ -1,0 +1,19 @@
+name: Source validation bundle
+on:
+  push:
+    branches: [main, build/visible-ai-lab]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create inspectable source bundle
+        run: git archive --format=zip --output=visible-ai-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visible-ai-source
+          path: visible-ai-source.zip
+          retention-days: 3

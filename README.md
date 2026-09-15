@@ -72,6 +72,8 @@ npm run build
 
 ## 开发与验收
 
+参与开发请先看 [开发与贡献指南](CONTRIBUTING.md) 和 [目录与架构指南](docs/ARCHITECTURE.md)。新增章节、模型协议、生命周期和验证要求均在其中说明；提交 PR 时使用仓库模板。AI 编码助手另有简短入口 [AGENTS.md](AGENTS.md)。
+
 Node.js 20+：
 
 ```sh

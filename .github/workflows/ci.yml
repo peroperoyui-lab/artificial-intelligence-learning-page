@@ -37,6 +37,7 @@ jobs:
         if: always()
         with:
           name: learning-lab-validation
+          include-hidden-files: true
           path: |
             .test-output/
             visible-ai-source.zip

@@ -53,6 +53,6 @@ U.load=()=>{try{const p=JSON.parse(localStorage.getItem(key)||'null');const s=bl
 U.state=U.load();
 U.persist=()=>{try{localStorage.setItem(key,JSON.stringify(U.state));return true;}catch{U.toast('浏览器未允许本地保存；请导出记录备份。');return false;}};
 U.download=(filename,text,type='application/json')=>{const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-U.record=(title,data)=>{U.state.journal.unshift({title,date:new Date().toISOString(),data});U.state.journal=U.state.journal.slice(0,30);const saved=U.persist();U.toast(saved?'已记入实验本，可在侧栏查看。':'已保留于当前页面内存；请导出备份。');};
+U.record=(title,data)=>{U.state.journal.unshift({title,date:new Date().toISOString(),data:JSON.parse(JSON.stringify(data))});U.state.journal=U.state.journal.slice(0,30);const saved=U.persist();U.toast(saved?'已记入实验本，可在侧栏查看。':'已保留于当前页面内存；请导出备份。');};
 root.AI.U=U;root.AI.labs={};
 })(globalThis);

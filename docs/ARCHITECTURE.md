@@ -17,10 +17,14 @@ artificial-intelligence-learning-page/
 ├── .gitignore                    忽略产物、依赖和测试临时文件
 ├── assets/
 │   ├── styles.css                全站视觉变量、布局、组件和实验样式
+│   ├── cases.css                 轻量专题、增强词典与术语链接样式
 │   ├── accessibility.css         SVG、隐藏状态与窄屏的辅助修正
 │   └── favicon.svg               原创站点图标
 ├── src/
 │   ├── engine.js                 纯数值引擎、种子随机数与 MLP
+│   ├── engine-extra.js           有界矩阵、Transformer 前向、视觉分类头和 K-means
+│   ├── content-expansion.js      补充正文、新专题、带例子词典及检索辅助
+│   ├── labs-extra.js             小图分类、Transformer、K-means 的交互与清理
 │   ├── content.js                课程、分组、词典与来源的结构化内容
 │   ├── ui.js                     DOM/表单、绘图、本地状态、下载和播放循环
 │   ├── labs-core.js              地图、矩阵、回归、神经元、损失、梯度、反传实验
@@ -32,11 +36,13 @@ artificial-intelligence-learning-page/
 │   └── build.js                  复制静态站点，并构建可单独携带的离线 HTML
 ├── tests/
 │   ├── engine.test.js            算法、梯度、模型协议及内容引用测试
+│   ├── extra.test.js             轻量案例数值、梯度、不变量及词典关系验证
 │   ├── ui.test.js                快照拷贝、文本转义与单文件构建回归
 │   └── browser_test.py           Playwright 的章节、交互、布局与加载验收
 ├── docs/
 │   ├── ARCHITECTURE.md           本文：目录、运行关系与扩展接点
 │   ├── DESIGN.md                 教学结构、视觉、计算口径与工程取舍
+│   ├── EXPANSION.md              1.1 轻量专题的口径、接口与验证范围
 │   └── VALIDATION.md             有日期与执行范围的历史验收记录
 └── .github/
     ├── pull_request_template.md  PR 说明与检查清单
@@ -53,7 +59,8 @@ artificial-intelligence-learning-page/
 `index.html` 按以下顺序加载普通 `defer` 脚本：
 
 ```text
-engine → content → ui → labs-core → labs-advanced → playground → app
+engine → engine-extra → content → content-expansion → ui
+→ labs-core → labs-advanced → playground → labs-extra → app
 ```
 
 各文件通过 IIFE 封装，使用 `globalThis.AI` 共享少量命名空间：
@@ -68,7 +75,7 @@ engine → content → ui → labs-core → labs-advanced → playground → app
 
 `engine.js` 和 `playground.js` 另提供 CommonJS 导出供现有 Node 测试使用；网页本身不使用 ES Module 加载。`ui.js` 初始化时会创建实验注册表，所以新增实验脚本应放在它之后、`app.js` 之前。
 
-路由只使用 URL hash：`#/`、`#/learn/<id>`、`#/glossary`、`#/journal`、`#/sources`。`app.js` 先清理旧页面，再挂载新页面；课程页统一生成说明、自测、笔记及记录按钮，实验函数只负责 `#lab-root` 内部的交互。
+路由只使用 URL hash：`#/`、`#/learn/<id>`、`#/glossary`、`#/glossary/<编码后的术语>`、`#/journal`、`#/sources`。`app.js` 先清理旧页面，再挂载新页面；课程页统一生成说明、自测、笔记及记录按钮，实验函数只负责 `#lab-root` 内部的交互。
 
 控件改变局部状态后，调用数值计算并重绘。数值与显示应共享同一份计算结果，避免曲线、文本指标和实际模型各用一套数据。小型教学步骤可保留在实验函数内，需要复用或独立验证的算法优先放入 `engine.js`。
 
@@ -83,14 +90,14 @@ engine → content → ui → labs-core → labs-advanced → playground → app
 | `group` | `groups` 数组的下标；新增分组需同步分组数据和布局检查 |
 | `lead` / `summary` / `challenge` | 导语 / 目录摘要 / 可验证的操作任务 |
 | `prereqs` | 前置章节 ID 数组，所有引用都应存在且不形成学习循环 |
-| `body` | `{ h, p }` 段落数组；当前浏览器测试约定每章恰好 3 段 |
+| `body` | `{ h, p }` 段落数组；正文段数可变，浏览器按当前章节数据核对实际渲染段数 |
 | `deep` | `{ title, html }`，可展开的推导；HTML 为仓库维护的静态内容 |
 | `quiz` | `{ q, options, answer, why }`；`answer` 为从 0 开始的正确选项下标 |
 | `refs` | `sources` 中的来源 ID 数组 |
 
-当前自测使用 3 个选项，`U.load()` 只恢复 0–2 的答案下标；如需更多选项，应一起修改加载校验和测试。调整正文段数同样可以，但需要同步浏览器断言，不要让旧的展示约定变成隐藏障碍。
+当前自测使用 3 个选项，`U.load()` 只恢复 0–2 的答案下标；如需更多选项，应一起修改加载校验和测试。正文与浏览器验收已解除固定 3 段限制。
 
-来源原始行格式为 `[id, title, url, use]`，映射为同名对象字段。词典的 `glossaryRows` 行格式为 `[term, en, definition, chapter]`，最后一个字段关联章节 ID。新增术语应同步检查词典筛选、全站搜索和来源页。
+来源原始行格式为 `[id, title, url, use]`，映射为同名对象字段。基础词典的 `glossaryRows` 行格式为 `[term, en, definition, chapter]`。`content-expansion.js` 为所有词条补充 `example`、`refs`、`related`；其新增行采用五列文本，分隔符是 `|`，正文不要包含该分隔符。`C.findTerms(query, chapter)` 统一筛选，`C.termLink(term)` 生成可编码的深链接；`related` 存准确术语名并由测试验证引用。来源使用 `C.sources` 中已有 ID。
 
 ## 4. 实验挂载与清理
 
@@ -132,10 +139,10 @@ engine → content → ui → labs-core → labs-advanced → playground → app
 1. 在 `content.js` 登记章节、分组位置、前置关系、来源与词典；优先保留已有章节 ID。
 2. 在合适的 `labs-*.js` 注册同名挂载函数，提供快照与清理；复杂独立实验可新增文件。新增脚本需要在 `index.html` 明确加载，维护依赖顺序。
 3. 在 `engine.test.js` 或相应测试里验证算法和内容关系，在 `browser_test.py` 中验证新控件、计算结果、快照及生命周期。
-4. 同步首页、词典、实验本中的数量文字，`C.groups[].range`、README 和测试中的固定数量。当前这些内容有显式的 13 章 / 52 词条常量，并未全部自动生成。
+4. 首页、词典和实验本数量已经从 `C` 自动生成；新增时仍需同步 `C.groups[].range`、README 和测试对本版课程规模的断言。1.1 基线为 16 章 / 173 词条。
 5. 检查学习页、目录、搜索、来源、窄屏、普通静态页面与单文件构建。
 
-新增自动化测试文件也要接入命令：`package.json` 的 `npm test` 当前显式列出两个 `.test.js` 文件，并不自动运行其他新文件。`ui.test.js` 的构建断言会检查 `src/` 下全部顶层 JS 均被内嵌；增加独立 Worker、非入口脚本或子目录时，要明确新的打包策略并同步测试。
+新增自动化测试文件也要接入命令：`package.json` 的 `npm test` 当前显式列出三个 `.test.js` 文件，并不自动运行其他新文件。`ui.test.js` 的构建断言会检查 `src/` 下全部顶层 JS 均被内嵌；增加独立 Worker、非入口脚本或子目录时，要明确新的打包策略并同步测试。
 
 ## 6. 两种保存机制
 
@@ -152,3 +159,9 @@ engine → content → ui → labs-core → labs-advanced → playground → app
 构建器不是通用依赖打包器：标签格式、`defer`、引号或属性顺序的改动可能影响现有匹配；新增 CSS 图片、字体、JS 动态加载、Worker 或其他资源不会自动递归内嵌。涉及这些修改时，需要更新构建逻辑并实际独立打开产物验证。构建复制前不会自动清空旧 `dist/`，删除/改名源资源时应清理旧产物后复核，防止残留文件掩盖问题。
 
 `ci.yml` 验证交互与数值，`source-check.yml` 仅打包源码，`pages.yml` 独立运行基本测试、构建并在检测到可用 Pages 后部署。成功打包、成功验收和成功在线发布是三个不同状态。工作流触发范围、工具版本和 artifacts 保留时间以对应 YAML 为准。
+
+## 8. 1.1 新增模块
+
+扩展文件在基础文件之后注册，不复制原有 MLP。`engine-extra.js` 扩充 `AI.E`，`content-expansion.js` 扩充 `AI.C`；`labs-extra.js` 遵循同一 `AI.labs[id](el)`、快照与清理协议。所有旧章节 ID、`visible-ai-v1` 学习记录键和 `visible-ai-model-v1` 模型格式保持不变。
+
+新案例快照是观察记录，不是新的通用模型导入格式。分类头与 Transformer 不接入原 MLP 导入器。详见 [EXPANSION.md](EXPANSION.md)。

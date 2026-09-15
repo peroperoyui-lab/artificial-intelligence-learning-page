@@ -2,7 +2,7 @@
 
 **让抽象的 AI，变成看得见的学习过程。**
 
-一个中文交互式 AI / 机器学习 / 深度学习基础学习站：13 个递进章节、52 个中英概念、真实神经网络训练台，以及可以保存的笔记和实验快照。
+一个中文交互式 AI / 机器学习 / 深度学习基础学习站：16 个递进章节、173 个中英概念、真实神经网络训练台，以及可以保存的笔记和实验快照。
 
 原生 HTML / CSS / JavaScript，**零生产依赖，无需账号、API Key、npm 安装或后端**。所有实验在浏览器本地计算。
 
@@ -28,7 +28,7 @@ npm run build
 
 这里的离线是“下载后本地打开”，不是 Service Worker 缓存。部分浏览器限制 `file://` 下的本地存储，计算不受影响；保存失败时会提示，可改用本地 HTTP 或导出记录。
 
-## 13 个可以动手的章节
+## 16 个可以动手的章节
 
 | 章节 | 实验 |
 |---|---|
@@ -45,8 +45,27 @@ npm run build
 | 卷积与局部特征 | 编辑像素与核，逐格检查乘加、步幅和填充 |
 | 注意力与 Transformer | 修改 Query，查看 Q/K/V、权重矩阵和因果掩码 |
 | 词元与生成 | 调整温度、top-k、人工 logits，并进行真实抽样 |
+| 小图像分类流水线 | 8×8 图案、三片固定卷积核、ReLU、最大/平均池化与真实分类头训练 |
+| 拆开 Transformer 块 | 1–8 词元、1/2 头、九阶段前向追踪与位置/掩码/残差/归一化开关 |
+| K-means 聚类 | 逐步分配与更新，比较随机/K-means++ 初始化、簇数、尺度和数据形状 |
 
 每章按照 **动手实验 → 理解原理 → 展开推导 → 自测与笔记** 组织。前置概念相互链接，按 `/` 可搜索章节和术语。支持专注模式、减少动画、本地进度及最多 30 条实验快照。
+
+## 1.1：更多解释，更多可检验的小实验
+
+原有 13 章新增 42 段机制说明；连同三个新专题，正文共 99 个说明段落，另有可展开推导。词典由 52 项增至 **173 项**，每项含中英名称、定义、例子、对应章节与来源；关联概念可以继续点开。支持按章节筛选，`#/glossary/<术语>` 深链接和 `/` 全站搜索。学习页保留可展开的本章术语入口，首页及实验本数量随课程数据更新。
+
+**小图分类**：1×8×8 输入 → 3×8×8 固定卷积 → ReLU → 3×4×4 池化 → 48 维特征 → 3 类 Softmax。输入可点击或用行/列/亮度编辑；可以移动线条、加噪声并切换最大/平均池化。仅训练最后 **147 个参数**，三片核不更新；120 个合成样本分层划为 90/30，验证集不参与梯度。它是固定特征提取加分类器，不冒充端到端 CNN 训练。分类头尚不支持独立文件导入/导出，可记录实验快照。
+
+**Transformer 单块**：最多 8 个词元、宽度 4、前馈宽度 8、1 或 2 个注意力头。逐层查看嵌入、位置编码、Q/K/V、掩码与 Softmax、拼接与输出投影、两次残差/LayerNorm、前馈和词表概率。采用 Post-LN，全部是固定种子权重；不下载大模型、不做训练、不自动接词生成。可以通过交换词元及消融开关检查位置和因果结构的作用。
+
+**K-means**：120 个二维点，2–5 个簇，分配与均值更新分开观察。支持 K-means++ / 随机样本初始化、三团点/同心圆、坐标尺度变化；每半步绘制真实簇内平方和。空簇保持旧中心。
+
+### 性能与运行边界
+
+新增实验仍为 CPU 上的普通 JavaScript、零生产依赖、无远程请求。Transformer 单头最多 8×8 注意力格，两头合计 128 格；小图特征只在设置重置时批量预计算，训练步复用它们。小图分类最多 200 轮，聚类最多 40 轮；全部播放循环离页释放，页面隐藏时暂停。
+
+测试报告包含 8 词元、2 头 Transformer 的 100 次前向计时，明确排除绘图并记录浏览器环境。不以该计时代替低端手机或所有浏览器的实测。公式、简化范围、参数账本及扩展接口见 [轻量专题设计](docs/EXPANSION.md)。
 
 ## 训练场确实在训练
 
@@ -81,7 +100,7 @@ npm test
 npm run build
 ```
 
-数值、模型、界面和构建回归共 48 项测试。浏览器验收另外需要 Python 3.10+：
+数值、模型、界面、词典和构建回归共 86 项测试；默认浏览器套件共 45 组验收。浏览器验收另外需要 Python 3.10+：
 
 ```sh
 python -m pip install -r requirements-dev.txt
@@ -91,7 +110,7 @@ npm run test:e2e
 
 默认使用真实 HTTP、file URL 和原生 localStorage。Linux CI 使用 `python -m playwright install --with-deps chromium`。受限环境可显式设置 `AI_TEST_IN_MEMORY=1`，它只测试内存渲染交互，并会明确跳过 3 组原生加载与持久化检查，不能代替默认验收。
 
-实际执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)；完整报告、截图与源码包见 Actions 的 `learning-lab-validation` 附件。测试脚本存在与验收实际通过是两个不同状态，以运行结果为准。
+初始执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)，1.1 新增范围见 [docs/EXPANSION.md](docs/EXPANSION.md)；完整报告、截图与源码包见 Actions 的 `learning-lab-validation` 附件。测试脚本存在与验收实际通过是两个不同状态，以运行结果为准。
 
 ## GitHub Pages
 
@@ -105,7 +124,7 @@ npm run test:e2e
 
 ## 项目结构与许可
 
-`src/engine.js` 为无 DOM 的数值引擎；`content.js` 存章节与来源；`ui.js` 提供控件和本地状态；`labs-core.js`、`labs-advanced.js` 实现实验；`playground.js` 负责训练与导入；`app.js` 连接路由、搜索、笔记和课程。
+`src/engine.js` 为原有数值引擎，`engine-extra.js` 补充轻量案例；`content.js` 存原课程，`content-expansion.js` 扩充说明、词典和新专题；`ui.js` 提供控件和本地状态；`labs-core.js`、`labs-advanced.js`、`labs-extra.js` 实现实验；`playground.js` 保持原有 MLP 与模型协议；`app.js` 连接路由、搜索、笔记和课程。
 
 来源包括《动手学深度学习》、Google ML Crash Course、PyTorch / scikit-learn / Hugging Face 官方文档和 Transformer 原始论文。各章提供原始链接。交互思路参考 TensorFlow Playground，设计过程参考 Anthropic 的公开 frontend-design 指南；未复制它们的代码、技能正文、图片或字体。
 
@@ -113,4 +132,4 @@ npm run test:e2e
 
 ---
 
-**Visible AI Lab** is an offline-capable Chinese interactive introduction to AI, machine learning and deep learning. It includes 13 visual chapters, a real deterministic MLP trainer, gradient checks, resumable models and a local learning journal. Zero production dependencies. Original implementation, MIT licensed.
+**Visible AI Lab** is an offline-capable Chinese interactive introduction to AI, machine learning and deep learning. It includes 16 visual chapters, a real deterministic MLP trainer, gradient checks, resumable models and a local learning journal. Zero production dependencies. Original implementation, MIT licensed.

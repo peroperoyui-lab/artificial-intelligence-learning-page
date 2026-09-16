@@ -66,7 +66,7 @@ try:
             assert float(page.locator('#home-loss').inner_text())>0
             page.screenshot(path=str(OUT/'home-desktop.png'),full_page=True)
         with check('All registered chapters mount their working lab and explanations'):
-            assert len(ids)==16
+            assert len(ids)==34
             for chapter in ids:
                 route(chapter)
                 assert len(page.locator('#main').inner_text())>600
@@ -180,8 +180,8 @@ try:
             page.click('#token-many');assert sum(snapshot()['counts'])==100 and sum(v>0 for v in snapshot()['counts'])>1
         with check('Expanded glossary exposes examples chapter filters and stable deep links'):
             route('/glossary')
-            assert page.locator('.dictionary-term').count()==173
-            assert page.locator('.term-example').count()==173
+            assert page.locator('.dictionary-term').count()==236
+            assert page.locator('.term-example').count()==236
             page.select_option('#dictionary-chapter','transformer')
             assert page.locator('.dictionary-term').count()==page.evaluate('AI.C.findTerms("","transformer").length')
             page.select_option('#dictionary-chapter','');page.fill('#dictionary-filter','layer norm')

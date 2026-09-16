@@ -2,7 +2,7 @@
 
 **让抽象的 AI，变成看得见的学习过程。**
 
-一个中文交互式 AI / 机器学习 / 深度学习基础学习站：16 个递进章节、173 个中英概念、真实神经网络训练台，以及可以保存的笔记和实验快照。
+一个中文交互式 AI / 机器学习 / 深度学习基础学习站：34 个章节（18 个大语言模型进阶专题）、236 个中英概念、真实神经网络训练台，以及可以保存的笔记和实验快照。
 
 原生 HTML / CSS / JavaScript，**零生产依赖，无需账号、API Key、npm 安装或后端**。所有实验在浏览器本地计算。
 
@@ -28,7 +28,33 @@ npm run build
 
 这里的离线是“下载后本地打开”，不是 Service Worker 缓存。部分浏览器限制 `file://` 下的本地存储，计算不受影响；保存失败时会提示，可改用本地 HTTP 或导出记录。
 
-## 16 个可以动手的章节
+## 1.2：大语言模型进阶研习室
+
+打开页面后，点击侧栏 **“大语言模型进阶”**（`#/llm`），进入独立路线。原有16章完整保留，全站现有 **34章、236词条、50项来源**。
+
+| 路线 | 进阶专题 |
+|---|---|
+| 语言与表示 17–22 | 语言建模、BPE、语料与Packing、RoPE、RMSNorm/SwiGLU、KV/GQA/FlashAttention |
+| 训练与适配 23–27 | 真正训练微型解码器、计算/内存预算、SFT模板与损失掩码、LoRA/QLoRA、RLHF/DPO/推理训练 |
+| 推理与应用 28–34 | 温度/top-k/top-p、量化、MoE路由、RAG检索、评估与污染、多模态patch、服务调度 |
+
+每个专题有可操作实验、机制解释、公式与迁移练习，词典继续提供定义、例子、关联概念和来源。进阶主页提供与《动手学深度学习》的阅读对照，完整教材和PyTorch实现从原站继续学习。没有复制教材文字、代码或图片。
+
+### 真正训练一个260参数的因果解码器
+
+第23章使用原创标量自动微分，**嵌入、位置、注意力、前馈和词表头全部参与训练**。宽度4、单头、单块、11项词表；六句训练、两句留出验证。先生成一次，再点击“训练120步”并重新生成，观察损失、权重和输出如何变化。
+
+生成采用真实自回归：根据当前前缀前向计算，采样新词，接回上下文再算，遇到EOS或预算停止。支持单步、暂停、种子重置、温度/top-p，以及独立的 `visible-microgpt-v1` 模型导入导出。原MLP格式仍然兼容，两个模型文件不能混用。
+
+这个模型没有通用语言能力；小词表和原创短句让整个计算过程可检查。它采用Pre-RMSNorm与ReLU，RoPE、SwiGLU等另设实验。全部260个参数有独立中心差分验证。
+
+### 算法、训练与预算各自标清
+
+BPE、RoPE、KV缓存等价性、量化、检索与patch投影实际计算；LoRA案例真实训练低秩矩阵，但不是语言模型微调。DPO只展示单对标量目标，MoE只执行路由；资源与服务调度有明确假设，不是硬件跑分。RAG返回六段原创资料中的证据，不伪造生成回答。
+
+保持CPU、零生产依赖、无模型下载。微型解码器最多8个输入位置/600步，LoRA最多300步；数十亿参数的预算只是算术，不创建相应张量。所有播放离页释放，切后台暂停。完整实现范围、数据、公式与限制见 [LLM_TRACK.md](docs/LLM_TRACK.md)。
+
+## 基础与轻量专题：原有16章
 
 | 章节 | 实验 |
 |---|---|
@@ -100,7 +126,7 @@ npm test
 npm run build
 ```
 
-数值、模型、界面、词典和构建回归共 86 项测试；默认浏览器套件共 45 组验收。浏览器验收另外需要 Python 3.10+：
+数值、模型、界面、词典和构建回归共 125 项测试；默认浏览器两套共 72 组验收（原套件45组、LLM套件27组）。浏览器验收另外需要 Python 3.10+：
 
 ```sh
 python -m pip install -r requirements-dev.txt
@@ -108,9 +134,9 @@ python -m playwright install chromium
 npm run test:e2e
 ```
 
-默认使用真实 HTTP、file URL 和原生 localStorage。Linux CI 使用 `python -m playwright install --with-deps chromium`。受限环境可显式设置 `AI_TEST_IN_MEMORY=1`，它只测试内存渲染交互，并会明确跳过 3 组原生加载与持久化检查，不能代替默认验收。
+默认使用真实 HTTP、file URL 和原生 localStorage。Linux CI 使用 `python -m playwright install --with-deps chromium`。受限环境可显式设置 `AI_TEST_IN_MEMORY=1`，它只测试内存渲染交互，两套合计会明确跳过 4 组原生加载与持久化检查，不能代替默认验收。
 
-初始执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)，1.1 新增范围见 [docs/EXPANSION.md](docs/EXPANSION.md)；完整报告、截图与源码包见 Actions 的 `learning-lab-validation` 附件。测试脚本存在与验收实际通过是两个不同状态，以运行结果为准。
+初始执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)，1.1 新增范围见 [docs/EXPANSION.md](docs/EXPANSION.md)，1.2 进阶范围见 [docs/LLM_TRACK.md](docs/LLM_TRACK.md)；完整报告、截图与源码包见 Actions 的 `learning-lab-validation` 附件。测试脚本存在与验收实际通过是两个不同状态，以运行结果为准。
 
 ## GitHub Pages
 
@@ -124,7 +150,7 @@ npm run test:e2e
 
 ## 项目结构与许可
 
-`src/engine.js` 为原有数值引擎，`engine-extra.js` 补充轻量案例；`content.js` 存原课程，`content-expansion.js` 扩充说明、词典和新专题；`ui.js` 提供控件和本地状态；`labs-core.js`、`labs-advanced.js`、`labs-extra.js` 实现实验；`playground.js` 保持原有 MLP 与模型协议；`app.js` 连接路由、搜索、笔记和课程。
+`src/engine.js` 为原有数值引擎，`engine-extra.js` 补充轻量案例；`content.js` 存原课程，`content-expansion.js` 扩充说明、词典和新专题；`ui.js` 提供控件和本地状态；`labs-core.js`、`labs-advanced.js`、`labs-extra.js` 实现实验；`playground.js` 保持原有 MLP 与模型协议；`app.js` 连接路由、搜索、笔记和课程。1.2 新增 `engine-llm.js`、`engine-microgpt.js`、`content-llm.js`、`labs-llm.js`、`llm-track.js`，共享原有UI和存储，不修改旧MLP。
 
 来源包括《动手学深度学习》、Google ML Crash Course、PyTorch / scikit-learn / Hugging Face 官方文档和 Transformer 原始论文。各章提供原始链接。交互思路参考 TensorFlow Playground，设计过程参考 Anthropic 的公开 frontend-design 指南；未复制它们的代码、技能正文、图片或字体。
 
@@ -132,4 +158,4 @@ npm run test:e2e
 
 ---
 
-**Visible AI Lab** is an offline-capable Chinese interactive introduction to AI, machine learning and deep learning. It includes 16 visual chapters, a real deterministic MLP trainer, gradient checks, resumable models and a local learning journal. Zero production dependencies. Original implementation, MIT licensed.
+**Visible AI Lab** is an offline-capable Chinese interactive introduction to AI, machine learning and deep learning. It includes 34 chapters (18 advanced LLM lessons), 236 glossary entries, a fully trainable 260-parameter causal decoder, a deterministic MLP trainer, gradient checks, resumable models and a local learning journal. Zero production dependencies. Original implementation, MIT licensed.

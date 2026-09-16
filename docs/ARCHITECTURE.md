@@ -59,8 +59,9 @@ artificial-intelligence-learning-page/
 `index.html` 按以下顺序加载普通 `defer` 脚本：
 
 ```text
-engine → engine-extra → content → content-expansion → ui
-→ labs-core → labs-advanced → playground → labs-extra → app
+engine → engine-extra → engine-llm → engine-microgpt
+→ content → content-expansion → content-llm → ui
+→ labs-core → labs-advanced → playground → labs-extra → labs-llm → llm-track → app
 ```
 
 各文件通过 IIFE 封装，使用 `globalThis.AI` 共享少量命名空间：
@@ -75,7 +76,7 @@ engine → engine-extra → content → content-expansion → ui
 
 `engine.js` 和 `playground.js` 另提供 CommonJS 导出供现有 Node 测试使用；网页本身不使用 ES Module 加载。`ui.js` 初始化时会创建实验注册表，所以新增实验脚本应放在它之后、`app.js` 之前。
 
-路由只使用 URL hash：`#/`、`#/learn/<id>`、`#/glossary`、`#/glossary/<编码后的术语>`、`#/journal`、`#/sources`。`app.js` 先清理旧页面，再挂载新页面；课程页统一生成说明、自测、笔记及记录按钮，实验函数只负责 `#lab-root` 内部的交互。
+路由只使用 URL hash：`#/`、`#/llm`、`#/learn/<id>`、`#/glossary`、`#/glossary/<编码后的术语>`、`#/journal`、`#/sources`。`app.js` 先清理旧页面，再挂载新页面；课程页统一生成说明、自测、笔记及记录按钮，实验函数只负责 `#lab-root` 内部的交互。
 
 控件改变局部状态后，调用数值计算并重绘。数值与显示应共享同一份计算结果，避免曲线、文本指标和实际模型各用一套数据。小型教学步骤可保留在实验函数内，需要复用或独立验证的算法优先放入 `engine.js`。
 
@@ -142,7 +143,7 @@ engine → engine-extra → content → content-expansion → ui
 4. 首页、词典和实验本数量已经从 `C` 自动生成；新增时仍需同步 `C.groups[].range`、README 和测试对本版课程规模的断言。1.1 基线为 16 章 / 173 词条。
 5. 检查学习页、目录、搜索、来源、窄屏、普通静态页面与单文件构建。
 
-新增自动化测试文件也要接入命令：`package.json` 的 `npm test` 当前显式列出三个 `.test.js` 文件，并不自动运行其他新文件。`ui.test.js` 的构建断言会检查 `src/` 下全部顶层 JS 均被内嵌；增加独立 Worker、非入口脚本或子目录时，要明确新的打包策略并同步测试。
+新增自动化测试文件也要接入命令：`package.json` 的 `npm test` 当前显式列出四个 `.test.js` 文件，并不自动运行其他新文件。`ui.test.js` 的构建断言会检查 `src/` 下全部顶层 JS 均被内嵌；增加独立 Worker、非入口脚本或子目录时，要明确新的打包策略并同步测试。
 
 ## 6. 两种保存机制
 
@@ -165,3 +166,23 @@ engine → engine-extra → content → content-expansion → ui
 扩展文件在基础文件之后注册，不复制原有 MLP。`engine-extra.js` 扩充 `AI.E`，`content-expansion.js` 扩充 `AI.C`；`labs-extra.js` 遵循同一 `AI.labs[id](el)`、快照与清理协议。所有旧章节 ID、`visible-ai-v1` 学习记录键和 `visible-ai-model-v1` 模型格式保持不变。
 
 新案例快照是观察记录，不是新的通用模型导入格式。分类头与 Transformer 不接入原 MLP 导入器。详见 [EXPANSION.md](EXPANSION.md)。
+
+## 9. 1.2 大语言模型路线
+
+| 文件 | 责任 |
+|---|---|
+| `src/engine-llm.js` | 创建 `AI.L`，有界BPE、RoPE、缓存、LoRA、量化、检索、预算与调度 |
+| `src/engine-microgpt.js` | `AI.L.Tape` 自动微分与 `AI.L.MicroGPT` 全参数因果解码器 |
+| `src/content-llm.js` | 新增18章/63词条/24来源、三个分组、D2L阅读地图 |
+| `src/labs-llm.js` | 18个章节实验，复用 `AI.U` 控件、快照、Loop和下载 |
+| `src/llm-track.js` | `AI.renderLLMTrack(main)`，独立 `#/llm` 总览 |
+| `assets/llm.css` | 进阶路线与实验的局部视觉样式 |
+| `tests/llm.test.js` | 数值、梯度、状态恢复、来源与前置关系检查 |
+| `tests/browser_llm_test.py` | 进阶交互、文件、生命周期、原生加载和窄屏验收 |
+| `docs/LLM_TRACK.md` | 课程对照、模型账本、输入上限与明确简化 |
+
+当前总量34章、236词条、50来源。`C.llmChapters` 保存新ID集合，`C.llmReading` 为原始教材阅读对照，`track: 'llm'` 标识路线。所有原章节ID保持不变。
+
+微型解码器文件使用独立 `visible-microgpt-v1` 格式；不会进入旧的 `AI.modelIO`。所有参数和Adam状态保存，但学习率/采样控件与历史损失不在模型文件中。当前词表、结构和原创语料由格式版本固定，修改这些时要考虑模型迁移。
+
+`npm run test:e2e` 顺序执行两个Python套件，各自启动并关闭本地服务，产物分别为 `browser-results.json` 和 `llm-browser-results.json`。CI仍沿用同一个工作流，原生HTTP/file断言未移除；测试环境确有限制时才设置内存模式。
